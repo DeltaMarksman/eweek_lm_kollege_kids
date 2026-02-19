@@ -8,7 +8,10 @@
 #define MOTOR_A_EN      11
 
 // Variables
-bool driving_forwards = true;
+bool motor_A_forwards = true;
+bool motor_B_forwards = true;
+int motor_A_out = 0;  // Right motor output
+int motor_B_out = 0;  // Left motor output
 
 void setup() {
   // Begin serial
@@ -49,23 +52,34 @@ void loop() {
   if (abs(throttle) > 260)
     return;
   
-  Serial.println(steering);
-  Serial.println(throttle);
+  // Assign motor speeds
+  motor_A_out = constrain(throttle - steering, -255, 255);
+  motor_B_out = constrain(throttle + steering, -255, 255);
+
+  Serial.println(motor_A_out);
+  Serial.println(motor_B_out);
   Serial.println();
 
 
   // Write to motors
-  if (throttle > 0 && !driving_forwards) {
-    driving_forwards = true;
+  if (motor_A_out > 0 && !motor_A_forwards) {
+    motor_A_forwards = true;
     setDirection(MOTOR_A_P, MOTOR_A_N, true);
+  }
+
+  if (motor_A_out < 0 && motor_A_forwards) {
+    motor_A_forwards = false;
+    setDirection(MOTOR_A_P, MOTOR_A_N, false);
+  }
+    if (motor_B_out > 0 && !motor_B_forwards) {
+    motor_B_forwards = true;
     setDirection(MOTOR_B_P, MOTOR_B_N, true);
   }
 
-  if (throttle < 0 && driving_forwards) {
-    driving_forwards = false;
-    setDirection(MOTOR_A_P, MOTOR_A_N, false);
+  if (motor_B_out < 0 && motor_B_forwards) {
+    motor_B_forwards = false;
     setDirection(MOTOR_B_P, MOTOR_B_N, false);
   }
-  analogWrite(MOTOR_A_EN, abs(throttle));
-  analogWrite(MOTOR_B_EN, abs(throttle));
+  analogWrite(MOTOR_A_EN, abs(motor_A_out));
+  analogWrite(MOTOR_B_EN, abs(motor_B_out));
 }
