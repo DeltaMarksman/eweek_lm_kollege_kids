@@ -36,16 +36,52 @@ void setDirection(int MOTOR_P, int MOTOR_N, bool forwards) {
   digitalWrite(MOTOR_N, forwards ? LOW : HIGH);
 }
 
+/*
+Formula is outlined in 
+https://www.desmos.com/calculator/0yqgsdipvz
+*/
+const int boost_to_level = 70;
+const int low_level_threshold = 10;
+const float linearity = 35.0;
+int low_level_booster(int input) {
+
+  // Flips input if it is negative, calculates for positve, then flips result.
+  bool was_negative = false;
+  if (input < 0) {
+    was_negative = true;
+    input *= -1;
+  }
+
+  int output = 0;
+
+  // Linearity
+  int linearity_term = -(pow((float) input-(float)low_level_threshold, 2) / (10.0*linearity)) + (2.55-(low_level_threshold)/100) * (100/(10 * linearity)) * (input-low_level_threshold);
+
+
+  if (abs(input) < low_level_threshold) {
+    
+    output = input * (boost_to_level/low_level_threshold);
+  } else {
+    float output_slope = (255.0 - boost_to_level) / (255.0 - low_level_threshold);
+    printf("output slope%f\n", output_slope);
+
+    output = ((output_slope * input) + boost_to_level - (low_level_threshold * output_slope)) - linearity_term;
+  }
+
+  return was_negative ? output * -1 : output;
+}
+
+
 void loop() {
   // Get control values
-  int steering = map(pulseIn(RIGHT_STICK_X, HIGH), 1000, 1989, -255, 255);
-  int throttle = map(pulseIn(RIGHT_STICK_Y, HIGH), 995, 1989, -255, 255);
+  int steering = low_level_booster(map(pulseIn(RIGHT_STICK_X, HIGH), 1000, 1989, -255, 255));
+  int throttle = low_level_booster(map(pulseIn(RIGHT_STICK_Y, HIGH), 995, 1989, -255, 255));
   
   // Create deadzones
-  if (abs(steering) <= 3)
+  if (abs(steering) <= boost_to_level * 0.9)
     steering = 0;
 
-  if (abs(throttle) <= 3)
+  if (abs(throttle) <= boost_to_level * 0.9)
     throttle = 0;
 
   // If remote is off, return
